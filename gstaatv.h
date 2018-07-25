@@ -26,6 +26,7 @@
 #include <gst/video/video.h>
 #include <aalib.h>
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -44,14 +45,43 @@ extern "C" {
 
 typedef struct _GstAATv GstAATv;
 typedef struct _GstAATvClass GstAATvClass;
+typedef struct _GstAATvDroplet GstAATvDroplet;
+
+struct _GstAATvDroplet {
+	int timer;
+	int speed;
+	int length;
+	int location;
+	int enabled;
+};
 
 struct _GstAATv {
   GstVideoFilter videofilter;
 
   aa_context *context;
-  guint8 red;
- guint8  green;
- guint8 blue;
+  
+  gboolean rain_enabled;
+    guint text_color;
+	
+  guint8 text_color_r;
+ guint8  text_color_g;
+ guint8 text_color_b;
+  guint bg_color;
+  
+  guint8 bg_color_r;
+ guint8  bg_color_g;
+ guint8 bg_color_b;
+   guint rain_color;
+  guint8 rain_color_r;
+ guint8  rain_color_g;
+ guint8 rain_color_b;
+ 
+ 
+  guint8 rain_orientation;
+ guint rain_width;
+guint rain_height;
+  GstAATvDroplet * raindrops;
+ 
   struct aa_renderparams ascii_parms;
 };
 
