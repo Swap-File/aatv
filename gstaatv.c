@@ -41,9 +41,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define DEFAULT_PROP_TEXT_COLOR    0xffffffff
-#define DEFAULT_PROP_BG_COLOR      0xff000000
-#define DEFAULT_PROP_RAIN_COLOR          0xff00ff00
+#define PROP_AATV_TEXT_COLOR_DEFAULT    0xffffffff  //WHITE
+#define PROP_AATV_BG_COLOR_DEFAULT      0xff000000  //BLACK
+#define PROP_AATV_RAIN_COLOR_DEFAULT    0xff00ff00  //GREEN
+#define PROP_AATV_RAIN_MODE_DEFAULT     GST_RAIN_OFF
 
 /* aatv signals and args */
 enum
@@ -68,6 +69,7 @@ enum
 	PROP_TEXT_COLOR,
 	PROP_BG_COLOR,
 	PROP_RAIN_COLOR,
+	PROP_RAIN_MODE,
 	PROP_INVERSION,
 	PROP_RANDOMVAL
 };
@@ -87,6 +89,29 @@ static void gst_aatv_set_property (GObject * object, guint prop_id,
 const GValue * value, GParamSpec * pspec);
 static void gst_aatv_get_property (GObject * object, guint prop_id,
 GValue * value, GParamSpec * pspec);
+
+#define GST_TYPE_AATV_RAIN_MODE (gst_aatv_rain_mode_get_type())
+
+static GType
+gst_aatv_rain_mode_get_type (void)
+{
+	static GType rain_mode = 0;
+
+	static const GEnumValue rain_modes[] = {
+		{GST_RAIN_OFF, "No Rain", "none"},
+		{GST_RAIN_DOWN, "Rain Down", "down"},
+		{GST_RAIN_UP, "Rain Up", "up"},
+		{GST_RAIN_LEFT, "Rain Left", "left"},
+		{GST_RAIN_RIGHT, "Rain Right", "right"},
+		{0, NULL, NULL},
+	};
+
+	if (!rain_mode) {
+		rain_mode = g_enum_register_static ("GstAATvRainModes", rain_modes);
+	}
+	return rain_mode;
+}
+
 
 
 #define gst_aatv_parent_class parent_class
@@ -133,12 +158,50 @@ static guint
 gst_aatv_rand_range(guint lower, guint upper){
 	return (rand() % (upper - lower + 1)) + lower;
 }
+static void
+gst_aatv_rain(GstAATv *aatv){
+	
+	GstAATvDroplet * raindrops = aatv->raindrops;
+	
+	for (int i=0; i < aatv->rain_width; i++){
+		if (raindrops[i].enabled == FALSE){
+			if (gst_aatv_rand_range(0,1000)>950){
+				
+				int obstructed = FALSE;
+				
+				//dont let adjacent lines be enabled at the same time
+				//if (i > 0)	if (raindrops[i-1].enabled == TRUE) obstructed = TRUE;
+				//if (i < aatv->rain_width)  if (raindrops[i+1].enabled == TRUE) obstructed = TRUE;
+				
+				if (i > 0)	if (raindrops[i-1].enabled == TRUE && raindrops[i-1].location + raindrops[i-1].length < aatv->rain_height/4) obstructed = TRUE;
+				if (i < aatv->rain_width)  if (raindrops[i+1].enabled == TRUE && raindrops[i+1].location + raindrops[i+1].length < aatv->rain_height/4) obstructed = TRUE;
+				
+				if (obstructed == FALSE){
+					raindrops[i].location = 0;
+					raindrops[i].length = gst_aatv_rand_range(3,10);
+					raindrops[i].speed = gst_aatv_rand_range(1,8);
+					raindrops[i].timer = 0;
+					raindrops[i].enabled = TRUE;
+				}
+			}
+		}else{
+			raindrops[i].timer++;
+			if(raindrops[i].timer > raindrops[i].speed){
+				raindrops[i].timer = 0;
+				raindrops[i].location++;
+			}
+			if(raindrops[i].location - raindrops[i].length > aatv->rain_height){
+				raindrops[i].enabled = FALSE;
+			}
+		}
+	}
+}
 
 static void
 gst_aatv_render(GstAATv *aatv,guchar * dest){
 	
 	//int autobrightness = 0;
-		GstAATvDroplet * raindrops =aatv->raindrops;
+	GstAATvDroplet * raindrops =aatv->raindrops;
 	int pixel_index = 0;
 	const unsigned char * font_dict_index = aa_currentfont(aatv->context)->data;
 	int font_height = aa_currentfont(aatv->context)->height;
@@ -153,7 +216,6 @@ gst_aatv_render(GstAATv *aatv,guchar * dest){
 	putc('\n', stdout);
 	*/
 	
-	
 	//loop through the canvas height
 	for (int y = 0; y < aa_scrheight(aatv->context);y++){
 		//loop through the height of a character's font
@@ -163,25 +225,46 @@ gst_aatv_render(GstAATv *aatv,guchar * dest){
 				//lookup what character we need to render
 				char input_letter = aa_text(aatv->context)[x + y * aa_scrwidth(aatv->context)];
 				
-				
 				//look that character up in the font glyph table
 				const unsigned char font_base = font_dict_index[input_letter * font_height + font_scan_line];
 				//loop through the width of a character's font
 				for(int w = 0; w < 8; w++){
-					if (CHECK_BIT(font_base,w)){
-						//autobrightness+= 10;
-
-						if (aatv->rain_enabled && raindrops[x].enabled &&  y <= raindrops[x].location && y >= (raindrops[x].location - raindrops[x].length) ) {
-							dest[pixel_index++] = aatv->rain_color_r;
-							dest[pixel_index++] = aatv->rain_color_g;
-							dest[pixel_index++] = aatv->rain_color_b;
-						}else{
+					int colored_pixel = FALSE;
+					//autobrightness+= 10;
+					
+					if (aatv->rain_mode == GST_RAIN_DOWN){
+						if (raindrops[x].enabled){
+							if (y <= raindrops[x].location && y >= (raindrops[x].location - raindrops[x].length))
+							colored_pixel = TRUE;
+						}
+					}else if (aatv->rain_mode == GST_RAIN_UP){
+						if (raindrops[x].enabled){
+							if ((aatv->rain_height-y) <= raindrops[x].location &&(aatv->rain_height-y)>= (raindrops[x].location - raindrops[x].length))
+							colored_pixel = TRUE;
+						}
+					}else if (aatv->rain_mode == GST_RAIN_LEFT){
+						if (raindrops[y].enabled){
+							if (x <= raindrops[y].location && x >= (raindrops[y].location - raindrops[y].length))
+							colored_pixel = TRUE;
+						}
+					}else if (aatv->rain_mode == GST_RAIN_RIGHT) {
+						if (raindrops[y].enabled){
+							if (aatv->rain_height-x <= raindrops[y].location && aatv->rain_height-x >= (raindrops[y].location - raindrops[y].length))
+							colored_pixel = TRUE;	
+						}
+					}
+					
+					
+					if (CHECK_BIT(font_base,w)){					
+						if (colored_pixel==FALSE){
 							dest[pixel_index++] = aatv->text_color_r;
 							dest[pixel_index++] = aatv->text_color_g;
 							dest[pixel_index++] = aatv->text_color_b;
+						}else{
+							dest[pixel_index++] = aatv->rain_color_r;
+							dest[pixel_index++] = aatv->rain_color_g;
+							dest[pixel_index++] = aatv->rain_color_b;
 						}
-						
-						
 					}else{
 						//autobrightness--;
 						dest[pixel_index++] = aatv->bg_color_r;
@@ -203,42 +286,8 @@ gst_aatv_transform_frame (GstVideoFilter * vfilter, GstVideoFrame * in_frame, Gs
 {
 	GstAATv *aatv = GST_AATV (vfilter);
 
-	GstAATvDroplet * raindrops =aatv->raindrops;
+	if (aatv->rain_mode != GST_RAIN_OFF) gst_aatv_rain(aatv);
 	
-	if (aatv->rain_enabled){
-		for (int i=0; i < 80; i++){
-			if (raindrops[i].enabled == FALSE){
-				if (gst_aatv_rand_range(0,1000)>950){
-					
-					int obstructed = FALSE;
-					
-					if (i > 0)	if (raindrops[i-1].enabled == TRUE) obstructed = TRUE;
-					if (i < 80)  if (raindrops[i+1].enabled == TRUE) obstructed = TRUE;
-					
-					if (obstructed == FALSE){
-						raindrops[i].location = 0;
-						raindrops[i].length = gst_aatv_rand_range(3,10);
-						raindrops[i].speed = gst_aatv_rand_range(1,8);
-						raindrops[i].timer = 0;
-						raindrops[i].enabled = TRUE;
-					}
-				}
-			}else{
-				raindrops[i].timer++;
-				if(raindrops[i].timer > raindrops[i].speed){
-					raindrops[i].timer = 0;
-					raindrops[i].location++;
-					
-				}
-				
-				if(raindrops[i].location - raindrops[i].length > 24){
-					raindrops[i].enabled = FALSE;
-				}
-			}
-
-		}
-	}
-
 	GST_OBJECT_LOCK (aatv);
 
 	gst_aatv_scale (aatv, GST_VIDEO_FRAME_PLANE_DATA (in_frame, 0), // src 
@@ -388,50 +437,55 @@ gst_aatv_class_init (GstAATvClass * klass)
 
 	/* FIXME: add long property descriptions */
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_WIDTH,
-	g_param_spec_int ("width", "width", "width", 0, G_MAXINT, 0,
+	g_param_spec_int ("width", "width", "Width of the ASCII canvas", 0, G_MAXINT, 0,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_HEIGHT,
-	g_param_spec_int ("height", "height", "height", 0, G_MAXINT, 0,
+	g_param_spec_int ("height", "height", "Height of the ASCII canvas", 0, G_MAXINT, 0,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_DITHER,
-	g_param_spec_enum ("dither", "dither", "dither", GST_TYPE_AADITHER, 0,
+	g_param_spec_enum ("dither", "dither", "Dithering Mode", GST_TYPE_AADITHER, 0,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_FONT,
-	g_param_spec_enum ("font", "font", "font", GST_TYPE_AAFONT, 0,
+	g_param_spec_enum ("font", "font", "ASCII font", GST_TYPE_AAFONT, 0,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_TEXT_COLOR,
-	g_param_spec_uint ("color", " Text Color",
-	"Color to use for text (big-endian ARGB).", 0, G_MAXUINT32,
-	DEFAULT_PROP_TEXT_COLOR,
+	g_param_spec_uint ("color", "color",
+	"Color to use for ASCII text (big-endian ARGB).", 0, G_MAXUINT32,
+	PROP_AATV_TEXT_COLOR_DEFAULT,
 	G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_BG_COLOR,
-	g_param_spec_uint ("background-color", "Color",
-	"Color to use for text (big-endian ARGB).", 0, G_MAXUINT32,
-	DEFAULT_PROP_BG_COLOR,
-	G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
-	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RAIN_COLOR,
-	g_param_spec_uint ("rain-color", "Color",
-	"Color to use for rain overlay (big-endian ARGB).", 0, G_MAXUINT32,
-	DEFAULT_PROP_RAIN_COLOR,
+	g_param_spec_uint ("background-color", "background-color",
+	"Color to use behind ASCII text (big-endian ARGB).", 0, G_MAXUINT32,
+	PROP_AATV_BG_COLOR_DEFAULT,
 	G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
 	
+	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RAIN_MODE,
+	g_param_spec_enum ("rain-mode", "rain-mode", "Set type of Rain",
+	GST_TYPE_AATV_RAIN_MODE, PROP_AATV_RAIN_MODE_DEFAULT,
+	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+	
+	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RAIN_COLOR,
+	g_param_spec_uint ("rain-color", "rain-color",
+	"Color to use for ASCII text rain overlay (big-endian ARGB).", 0, G_MAXUINT32,
+	PROP_AATV_RAIN_COLOR_DEFAULT,
+	G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_BRIGHTNESS,
-	g_param_spec_int ("brightness", "brightness", "brightness", -255,
+	g_param_spec_int ("brightness", "brightness", "Brightness", -255,
 	255, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_CONTRAST,
-	g_param_spec_int ("contrast", "contrast", "contrast", 0, G_MAXUINT8,
+	g_param_spec_int ("contrast", "contrast", "Contrast", 0, G_MAXUINT8,
 	0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_GAMMA,
-	g_param_spec_float ("gamma", "gamma", "gamma", 0.0, 5.0, 1.0,
+	g_param_spec_float ("gamma", "gamma", "set gamma correction value", 0.0, 5.0, 1.0,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_INVERSION,
-	g_param_spec_boolean ("inversion", "inversion", "inversion", TRUE,
+	g_param_spec_boolean ("inversion", "inversion", "Inverse rendering", TRUE,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RANDOMVAL,
-	g_param_spec_int ("randomval", "randomval", "randomval", 0,
+	g_param_spec_int ("randomval", "randomval", "Random dithering value", 0,
 	G_MAXINT, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
 	gst_element_class_add_static_pad_template (gstelement_class,
@@ -449,22 +503,24 @@ gst_aatv_class_init (GstAATvClass * klass)
 }
 static void gst_aatv_rain_init(GstAATv * aatv){
 	
-	switch(aatv->rain_orientation) {
+	switch(aatv->rain_mode) {
 		
-	case 0:
-	case 1:
+	case GST_RAIN_DOWN:
+	case GST_RAIN_UP:
 		aatv-> rain_width =  aa_defparams.width;
 		aatv-> rain_height =  aa_defparams.height;
 		break;
-	case 2:
-	case 3:
-		aatv-> rain_width =  aa_defparams.height ;
+	case GST_RAIN_LEFT:
+	case GST_RAIN_RIGHT:
+		aatv-> rain_width = aa_defparams.height ;
 		aatv-> rain_height = aa_defparams.width;
 		break; 
+		
+	case GST_RAIN_OFF:
+		return;
 	}
 	
-	aatv->raindrops = malloc( aatv-> rain_width * sizeof(struct _GstAATvDroplet));
-	
+	aatv->raindrops = realloc( aatv->raindrops , aatv-> rain_width * sizeof(struct _GstAATvDroplet));
 	for (int i=0; i < aatv->rain_width; i++) aatv->raindrops[i].enabled = FALSE;
 	
 }
@@ -487,24 +543,23 @@ gst_aatv_init (GstAATv * aatv)
 	aatv -> context =  aa_init(&mem_d,&aa_defparams,NULL);
 	aa_setfont(aatv->context, aa_fonts[0]);
 	
-	aatv->text_color = DEFAULT_PROP_TEXT_COLOR;
+	aatv->text_color = PROP_AATV_TEXT_COLOR_DEFAULT;
 	aatv->text_color_r = (aatv->text_color  >> 16) & 0xff;
 	aatv->text_color_g = (aatv->text_color  >> 8) & 0xff;
 	aatv->text_color_b  = (aatv->text_color  >> 0) & 0xff;
 	
-	aatv->bg_color = DEFAULT_PROP_BG_COLOR;
+	aatv->bg_color = PROP_AATV_BG_COLOR_DEFAULT;
 	aatv->bg_color_r = (aatv->bg_color >> 16) & 0xff;
 	aatv->bg_color_g = (aatv->bg_color >> 8) & 0xff;
 	aatv->bg_color_b  = (aatv->bg_color >> 0) & 0xff;
 
-	aatv->rain_color = DEFAULT_PROP_RAIN_COLOR;
+	aatv->rain_color = PROP_AATV_RAIN_COLOR_DEFAULT;
 	aatv->rain_color_r = (aatv->rain_color  >> 16) & 0xff;
 	aatv->rain_color_g = (aatv->rain_color  >> 8) & 0xff;
 	aatv->rain_color_b  = (aatv->rain_color  >> 0) & 0xff;
 	
-	aatv->rain_orientation = 0;
-	
-	aatv->rain_enabled = TRUE;
+
+	aatv->rain_mode = GST_RAIN_RIGHT;
 	
 	gst_aatv_rain_init(aatv);
 }
@@ -577,8 +632,12 @@ GParamSpec * pspec)
 			aatv->ascii_parms.inversion = g_value_get_boolean (value);
 			break;
 		}
-	case PROP_RANDOMVAL:{
+	case PROP_RANDOMVAL:{  
 			aatv->ascii_parms.randomval = g_value_get_int (value);
+			break;
+		}
+	case PROP_RAIN_MODE:{  
+			aatv->rain_mode = g_value_get_enum (value);
 			break;
 		}
 	default:
@@ -642,6 +701,10 @@ GParamSpec * pspec)
 		}
 	case PROP_RANDOMVAL:{
 			g_value_set_int (value, aatv->ascii_parms.randomval);
+			break;
+		}
+	case PROP_RAIN_MODE:{  
+			g_value_set_enum (value, aatv->rain_mode);
 			break;
 		}
 	default:{
