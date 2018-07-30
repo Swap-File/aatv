@@ -88,7 +88,19 @@ extern "C" {
 
 		gint rain_width;
 		gint rain_height;
+		
+	    gint rain_length_min;
+		gint rain_length_max;
 
+	    gint rain_speed_min;
+		gint rain_speed_max;
+	
+		gfloat rain_spawn_rate;
+		gboolean auto_brightness;
+		gfloat  brightness_target_min;
+		gfloat  brightness_target_max;
+		gfloat lit_percentage;
+		
 		GstAATvDroplet * raindrops;
 		struct aa_renderparams ascii_parms;
 	};
