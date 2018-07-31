@@ -56,11 +56,11 @@ extern "C" {
 	} GstRainMode;
 
 	struct _GstAATvDroplet {
-		int timer;
-		int speed;
-		int length;
-		int location;
-		int enabled;
+		gboolean enabled;
+		gint location;		
+		gint length;			
+		gint delay;
+		gint delay_counter;
 	};
 
 	struct _GstAATv {
@@ -82,8 +82,7 @@ extern "C" {
 		guint8 rain_color_r;
 		guint8 rain_color_g;
 		guint8 rain_color_b;
-
-
+		
 		GstRainMode rain_mode;
 
 		gint rain_width;
@@ -92,8 +91,8 @@ extern "C" {
 	    gint rain_length_min;
 		gint rain_length_max;
 
-	    gint rain_speed_min;
-		gint rain_speed_max;
+	    gint rain_delay_min;
+		gint rain_delay_max;
 	
 		gfloat rain_spawn_rate;
 		gboolean auto_brightness;
