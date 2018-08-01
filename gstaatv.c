@@ -91,7 +91,7 @@ GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{ I420}"))
 static GstStaticPadTemplate src_template_tv = GST_STATIC_PAD_TEMPLATE ("src",
 GST_PAD_SRC,
 GST_PAD_ALWAYS,
-GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{ RGB }"))
+GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{ ARGB }"))
 );
 
 static void gst_aatv_set_property (GObject * object, guint prop_id,
@@ -217,6 +217,7 @@ gst_aatv_render(GstAATv *aatv,guchar * dest){
 	guint x, y, font_x, font_y;
 	guint background_pixels = 0;
 	guint foreground_pixels = 0;
+	guint char_index = 0;
 	guint dest_index = 0;
 	
 	gchar input_letter,input_glyph;
@@ -233,9 +234,10 @@ gst_aatv_render(GstAATv *aatv,guchar * dest){
 		for (font_y = 0;font_y < font_height;font_y++){
 			//loop through the canvas width
 			for (x = 0;x < aa_scrwidth(aatv->context);x++){
-				
+				//which char are we working on
+				char_index = x + y*aa_scrwidth(aatv->context);
 				//lookup what character we need to render
-				input_letter = aa_text(aatv->context)[x + y*aa_scrwidth(aatv->context)];
+				input_letter = aa_text(aatv->context)[char_index];
 				//look that character up in the font glyph table
 				input_glyph = font_base_address[input_letter*font_height + font_y];			
 
@@ -265,20 +267,50 @@ gst_aatv_render(GstAATv *aatv,guchar * dest){
 				}
 				
 				//loop through the width of a character's font (always 8 pixels wide)
-				for( font_x = 0; font_x < 8; font_x++){
-					if (CHECK_BIT(input_glyph,font_x)){	
-						foreground_pixels++;					
-						if (colored_pixel){
-							dest[dest_index++] = aatv->rain_color_r;
-							dest[dest_index++] = aatv->rain_color_g;
-							dest[dest_index++] = aatv->rain_color_b;
+				for(font_x = 0; font_x < 8; font_x++){
+					if (CHECK_BIT(input_glyph,font_x)){
+						guchar attribute = aa_attrs(aatv->context)[char_index];
+						foreground_pixels++;
+						if (attribute == AA_DIM){
+							if (colored_pixel){
+								dest[dest_index++] = aatv->rain_color_a_dim;
+								dest[dest_index++] = aatv->rain_color_r_dim;
+								dest[dest_index++] = aatv->rain_color_g_dim;
+								dest[dest_index++] = aatv->rain_color_b_dim;
+							}else{
+								dest[dest_index++] = aatv->text_color_a_dim;
+								dest[dest_index++] = aatv->text_color_r_dim;
+								dest[dest_index++] = aatv->text_color_g_dim;
+								dest[dest_index++] = aatv->text_color_b_dim;
+							}
+						}else if (attribute == AA_BOLD){
+							if (colored_pixel){
+								dest[dest_index++] = aatv->rain_color_a_bright;
+								dest[dest_index++] = aatv->rain_color_r_bright;
+								dest[dest_index++] = aatv->rain_color_g_bright;
+								dest[dest_index++] = aatv->rain_color_b_bright;
+							}else{
+								dest[dest_index++] = aatv->text_color_a_bright;
+								dest[dest_index++] = aatv->text_color_r_bright;
+								dest[dest_index++] = aatv->text_color_g_bright;
+								dest[dest_index++] = aatv->text_color_b_bright;
+							}
 						}else{
-							dest[dest_index++] = aatv->text_color_r;
-							dest[dest_index++] = aatv->text_color_g;
-							dest[dest_index++] = aatv->text_color_b;
+							if (colored_pixel){
+								dest[dest_index++] = aatv->rain_color_a_normal;
+								dest[dest_index++] = aatv->rain_color_r_normal;
+								dest[dest_index++] = aatv->rain_color_g_normal;
+								dest[dest_index++] = aatv->rain_color_b_normal;
+							}else{
+								dest[dest_index++] = aatv->text_color_a_normal;
+								dest[dest_index++] = aatv->text_color_r_normal;
+								dest[dest_index++] = aatv->text_color_g_normal;
+								dest[dest_index++] = aatv->text_color_b_normal;
+							}
 						}
 					}else{
 						background_pixels++;
+						dest[dest_index++] = aatv->bg_color_a;
 						dest[dest_index++] = aatv->bg_color_r;
 						dest[dest_index++] = aatv->bg_color_g;
 						dest[dest_index++] = aatv->bg_color_b;
@@ -426,7 +458,7 @@ gst_aatv_transform_caps (GstBaseTransform * trans, GstPadDirection direction,   
 		//force ARGB output format 
 		g_value_init (&formats, GST_TYPE_LIST);
 		g_value_init (&value, G_TYPE_STRING);
-		g_value_set_string (&value, "RGB");
+		g_value_set_string (&value, "ARGB");
 		gst_value_list_append_value (&formats, &value);
 
 		gst_caps_set_value (ret, "format", &formats);
@@ -489,7 +521,7 @@ gst_aatv_class_init (GstAATvClass * klass)
 	255, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_BRIGHTNESS_AUTO,
-	g_param_spec_boolean ("brightness-auto", "brightness-auto", "Automatic Brightness", TRUE,
+	g_param_spec_boolean ("brightness-auto", "brightness-auto", "Automatically adjust brightness based on pixel fill", TRUE,
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_FILL_ACTUAL,
@@ -518,7 +550,7 @@ gst_aatv_class_init (GstAATvClass * klass)
 	G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RANDOMVAL,
-	g_param_spec_int ("randomval", "randomval", "Add a random value in the range (-randomval/2,ranomval/2) to each pixel before rendering", 0,
+	g_param_spec_int ("randomval", "randomval", "Add a value in the range (-randomval/2,ranomval/2) to each pixel during rendering", 0,
 	G_MAXINT, 0, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 	
 	g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_RAIN_DELAY_MIN,
@@ -576,7 +608,8 @@ static void gst_aatv_rain_init(GstAATv * aatv){
 		aatv-> rain_height = aa_defparams.width;
 		break; 
 	case GST_RAIN_OFF:
-		return;
+		aatv-> rain_width = 0;
+		aatv-> rain_height = 0;
 	}
 	
 	if (aatv->context != NULL) aa_close(aatv->context);
@@ -587,6 +620,45 @@ static void gst_aatv_rain_init(GstAATv * aatv){
 	for (gint i=0; i < aatv->rain_width; i++) aatv->raindrops[i].enabled = FALSE;
 	
 }
+static void gst_aatv_calculate_colors(GstAATv * aatv){
+	
+	aatv->text_color_a_bright = (aatv->text_color >> 24) & 0xff;
+	aatv->text_color_r_bright = (aatv->text_color >> 16) & 0xff;
+	aatv->text_color_g_bright = (aatv->text_color >> 8) & 0xff;
+	aatv->text_color_b_bright = (aatv->text_color >> 0) & 0xff;
+	
+	aatv->text_color_a_normal = aatv->text_color_a_bright;
+	aatv->text_color_r_normal = aatv->text_color_r_bright >> 1;
+	aatv->text_color_g_normal = aatv->text_color_g_bright >> 1;
+	aatv->text_color_b_normal = aatv->text_color_b_bright >> 1;
+	
+	aatv->text_color_a_dim = aatv->text_color_a_normal;
+	aatv->text_color_r_dim = aatv->text_color_r_normal >> 1;
+	aatv->text_color_g_dim = aatv->text_color_g_normal >> 1;
+	aatv->text_color_b_dim = aatv->text_color_b_normal >> 1;
+	
+	aatv->bg_color_a = (aatv->bg_color >> 24) & 0xff;
+	aatv->bg_color_r = (aatv->bg_color >> 16) & 0xff;
+	aatv->bg_color_g = (aatv->bg_color >> 8) & 0xff;
+	aatv->bg_color_b = (aatv->bg_color >> 0) & 0xff;
+	
+	aatv->rain_color_a_bright = (aatv->rain_color >> 24) & 0xff;
+	aatv->rain_color_r_bright = (aatv->rain_color >> 16) & 0xff;
+	aatv->rain_color_g_bright = (aatv->rain_color >> 8) & 0xff;
+	aatv->rain_color_b_bright = (aatv->rain_color >> 0) & 0xff;
+	
+	aatv->rain_color_a_normal = aatv->rain_color_a_bright;
+	aatv->rain_color_r_normal = aatv->rain_color_r_bright >> 1;
+	aatv->rain_color_g_normal = aatv->rain_color_g_bright >> 1;
+	aatv->rain_color_b_normal = aatv->rain_color_b_bright >> 1;
+	
+	aatv->rain_color_a_dim = aatv->rain_color_a_normal;
+	aatv->rain_color_r_dim = aatv->rain_color_r_normal >> 1;
+	aatv->rain_color_g_dim = aatv->rain_color_g_normal >> 1;
+	aatv->rain_color_b_dim = aatv->rain_color_b_normal >> 1;
+	
+}
+
 
 static void
 gst_aatv_init (GstAATv * aatv)
@@ -602,21 +674,10 @@ gst_aatv_init (GstAATv * aatv)
 	aatv->ascii_parms.randomval = 0;
 
 	aatv->text_color = PROP_AATV_TEXT_COLOR_DEFAULT;
-	aatv->text_color_r = (aatv->text_color >> 16) & 0xff;
-	aatv->text_color_g = (aatv->text_color >> 8) & 0xff;
-	aatv->text_color_b = (aatv->text_color >> 0) & 0xff;
-	
 	aatv->bg_color = PROP_AATV_BG_COLOR_DEFAULT;
-	aatv->bg_color_r = (aatv->bg_color >> 16) & 0xff;
-	aatv->bg_color_g = (aatv->bg_color >> 8) & 0xff;
-	aatv->bg_color_b = (aatv->bg_color >> 0) & 0xff;
-
 	aatv->rain_color = PROP_AATV_RAIN_COLOR_DEFAULT;
-	aatv->rain_color_r = (aatv->rain_color >> 16) & 0xff;
-	aatv->rain_color_g = (aatv->rain_color >> 8) & 0xff;
-	aatv->rain_color_b = (aatv->rain_color >> 0) & 0xff;
-	
-	aatv->rain_mode = GST_RAIN_DOWN;
+	gst_aatv_calculate_colors(aatv);
+	aatv->rain_mode = GST_RAIN_RIGHT;
 	
 	gst_aatv_rain_init(aatv);
 	
@@ -693,23 +754,17 @@ GParamSpec * pspec)
 		}
 	case PROP_TEXT_COLOR:{
 			aatv->text_color = g_value_get_uint (value);
-			aatv->text_color_r = (aatv->text_color >> 16) & 0xff;
-			aatv->text_color_g = (aatv->text_color >> 8) & 0xff;
-			aatv->text_color_b = (aatv->text_color >> 0) & 0xff;
+			gst_aatv_calculate_colors(aatv);
 			break;
 		}
 	case PROP_BG_COLOR:{
 			aatv->bg_color = g_value_get_uint (value);
-			aatv->bg_color_r = (aatv->bg_color >> 16) & 0xff;
-			aatv->bg_color_g = (aatv->bg_color >> 8) & 0xff;
-			aatv->bg_color_b = (aatv->bg_color >> 0) & 0xff;
+			gst_aatv_calculate_colors(aatv);
 			break;
 		}
 	case PROP_RAIN_COLOR:{
 			aatv->rain_color = g_value_get_uint (value);
-			aatv->rain_color_r = (aatv->rain_color >> 16) & 0xff;
-			aatv->rain_color_g = (aatv->rain_color >> 8) & 0xff;
-			aatv->rain_color_b = (aatv->rain_color >> 0) & 0xff;
+			gst_aatv_calculate_colors(aatv);
 			break;
 		}
 	case PROP_BRIGHTNESS_AUTO:{

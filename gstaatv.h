@@ -70,18 +70,47 @@ extern "C" {
 
 		guint text_color;
 		
-		guint8 text_color_r;
-		guint8 text_color_g;
-		guint8 text_color_b;
-		guint bg_color;
+		guint8 text_color_a_bright;
+		guint8 text_color_r_bright;
+		guint8 text_color_g_bright;
+		guint8 text_color_b_bright;
+		
+		guint8 text_color_a_normal;
+		guint8 text_color_r_normal;
+		guint8 text_color_g_normal;
+		guint8 text_color_b_normal;
+		
+		guint8 text_color_a_dim;
+		guint8 text_color_r_dim;
+		guint8 text_color_g_dim;
+		guint8 text_color_b_dim;
 
+		
+		guint bg_color;
+		
+		guint8 bg_color_a;
 		guint8 bg_color_r;
 		guint8 bg_color_g;
 		guint8 bg_color_b;
+		
+			
 		guint rain_color;
-		guint8 rain_color_r;
-		guint8 rain_color_g;
-		guint8 rain_color_b;
+		
+		guint8 rain_color_a_bright;
+		guint8 rain_color_r_bright;
+		guint8 rain_color_g_bright;
+		guint8 rain_color_b_bright;	
+		
+		guint8 rain_color_a_normal;
+		guint8 rain_color_r_normal;
+		guint8 rain_color_g_normal;
+		guint8 rain_color_b_normal;
+		
+		guint8 rain_color_a_dim;
+		guint8 rain_color_r_dim;
+		guint8 rain_color_g_dim;
+		guint8 rain_color_b_dim;
+	
 		
 		GstRainMode rain_mode;
 
