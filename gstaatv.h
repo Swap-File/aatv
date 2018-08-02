@@ -46,6 +46,7 @@ extern "C" {
 	typedef struct _GstAATv GstAATv;
 	typedef struct _GstAATvClass GstAATvClass;
 	typedef struct _GstAATvDroplet GstAATvDroplet;
+typedef struct _GstAATvARGB GstAATvARGB;
 
 	typedef enum {
 		GST_RAIN_OFF,
@@ -62,55 +63,25 @@ extern "C" {
 		gint delay;
 		gint delay_counter;
 	};
-
+	
+	struct _GstAATvARGB {
+		guint32 argb;
+     	guint8 a;
+		guint8 r;
+		guint8 g;
+		guint8 b;
+	};
+	
 	struct _GstAATv {
 		GstVideoFilter videofilter;
 
 		aa_context *context;
 
-		guint text_color;
-		
-		guint8 text_color_a_bright;
-		guint8 text_color_r_bright;
-		guint8 text_color_g_bright;
-		guint8 text_color_b_bright;
-		
-		guint8 text_color_a_normal;
-		guint8 text_color_r_normal;
-		guint8 text_color_g_normal;
-		guint8 text_color_b_normal;
-		
-		guint8 text_color_a_dim;
-		guint8 text_color_r_dim;
-		guint8 text_color_g_dim;
-		guint8 text_color_b_dim;
-
-		
-		guint bg_color;
-		
-		guint8 bg_color_a;
-		guint8 bg_color_r;
-		guint8 bg_color_g;
-		guint8 bg_color_b;
-		
-			
-		guint rain_color;
-		
-		guint8 rain_color_a_bright;
-		guint8 rain_color_r_bright;
-		guint8 rain_color_g_bright;
-		guint8 rain_color_b_bright;	
-		
-		guint8 rain_color_a_normal;
-		guint8 rain_color_r_normal;
-		guint8 rain_color_g_normal;
-		guint8 rain_color_b_normal;
-		
-		guint8 rain_color_a_dim;
-		guint8 rain_color_r_dim;
-		guint8 rain_color_g_dim;
-		guint8 rain_color_b_dim;
-	
+		guint32 text_color;
+		GstAATvARGB text_color_bright,text_color_normal,text_color_dim;
+		guint32 rain_color;
+		GstAATvARGB rain_color_bright,rain_color_normal,rain_color_dim;
+		GstAATvARGB bg_color;
 		
 		GstRainMode rain_mode;
 
