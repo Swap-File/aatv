@@ -46,7 +46,7 @@ extern "C" {
 	typedef struct _GstAATv GstAATv;
 	typedef struct _GstAATvClass GstAATvClass;
 	typedef struct _GstAATvDroplet GstAATvDroplet;
-typedef struct _GstAATvARGB GstAATvARGB;
+	typedef struct _GstAATvARGB GstAATvARGB;
 
 	typedef enum {
 		GST_RAIN_OFF,
@@ -66,7 +66,7 @@ typedef struct _GstAATvARGB GstAATvARGB;
 	
 	struct _GstAATvARGB {
 		guint32 argb;
-     	guint8 a;
+		guint8 a;
 		guint8 r;
 		guint8 g;
 		guint8 b;
@@ -77,27 +77,28 @@ typedef struct _GstAATvARGB GstAATvARGB;
 
 		aa_context *context;
 
-		guint32 text_color;
-		GstAATvARGB text_color_bright,text_color_normal,text_color_dim;
-		guint32 rain_color;
-		GstAATvARGB rain_color_bright,rain_color_normal,rain_color_dim;
-		GstAATvARGB bg_color;
+		guint32 color_text;
+		GstAATvARGB color_text_bold,color_text_normal,color_text_dim;
+		guint32 color_rain;
+		GstAATvARGB color_rain_bold,color_rain_normal,color_rain_dim;
+		GstAATvARGB color_background;
 		
 		GstRainMode rain_mode;
 
 		gint rain_width;
 		gint rain_height;
 		
-	    gint rain_length_min;
+		gint rain_length_min;
 		gint rain_length_max;
 
-	    gint rain_delay_min;
+		gint rain_delay_min;
 		gint rain_delay_max;
-	
+		
 		gfloat rain_spawn_rate;
+		
 		gboolean auto_brightness;
-		gfloat  brightness_target_min;
-		gfloat  brightness_target_max;
+		gfloat brightness_target_min;
+		gfloat brightness_target_max;
 		gfloat lit_percentage;
 		
 		GstAATvDroplet * raindrops;
