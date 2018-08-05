@@ -38,17 +38,17 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define PROP_AATV_color_text_DEFAULT    0xffffffff      //WHITE
-#define PROP_AATV_color_background_DEFAULT      0xff000000      //BLACK
-#define PROP_AATV_color_rain_DEFAULT    0xff00ff00      //GREEN
-#define PROP_AATV_RAIN_MODE_DEFAULT     GST_RAIN_OFF
-#define PROP_BRIGHTNESS_TARGET_MIN_DEFAULT    0.3
-#define PROP_BRIGHTNESS_TARGET_MAX_DEFAULT    0.4
-#define PROP_RAIN_SPAWN_DEFAULT      	0.2
-#define PROP_RAIN_DELAY_MIN_DEFAULT 	0
-#define PROP_RAIN_DELAY_MAX_DEFAULT		2
-#define PROP_RAIN_LENGTH_MIN_DEFAULT 	4
-#define PROP_RAIN_LENGTH_MAX_DEFAULT 	30
+#define PROP_AATV_color_text_DEFAULT    	0xffffffff      /* White */
+#define PROP_AATV_color_background_DEFAULT	0xff000000      /* Black */
+#define PROP_AATV_color_rain_DEFAULT    	0xff00ff00      /* Green */
+#define PROP_AATV_RAIN_MODE_DEFAULT			GST_RAIN_OFF
+#define PROP_BRIGHTNESS_TARGET_MIN_DEFAULT	0.3
+#define PROP_BRIGHTNESS_TARGET_MAX_DEFAULT	0.4
+#define PROP_RAIN_SPAWN_DEFAULT      		0.2
+#define PROP_RAIN_DELAY_MIN_DEFAULT 		0
+#define PROP_RAIN_DELAY_MAX_DEFAULT			2
+#define PROP_RAIN_LENGTH_MIN_DEFAULT 		4
+#define PROP_RAIN_LENGTH_MAX_DEFAULT 		30
 
 /* aatv signals and args */
 enum
@@ -141,8 +141,8 @@ gst_aatv_scale (GstAATv * aatv, guchar * src, guchar * dest,
   g_return_if_fail ((dw != 0) && (dh != 0));
 
   ypos = 0x10000;
-  yinc = (sh << 16) / dh;       //how many bins wide are we?
-  xinc = (sw << 16) / dw;       //how many bins tall are we?
+  yinc = (sh << 16) / dh;
+  xinc = (sw << 16) / dw;
 
   for (y = dh; y; y--) {
     while (ypos > 0x10000) {
@@ -189,7 +189,7 @@ gst_aatv_rain (GstAATv * aatv)
 
         obstructed = FALSE;
 
-        //dont let adjacent lines be enabled at the same time                           
+/* Don't let adjacent lines be enabled at the same time. */
         if (i > 0)
           if (raindrops[i - 1].enabled == TRUE)
             if (raindrops[i - 1].location - raindrops[i - 1].length <
@@ -244,23 +244,23 @@ gst_aatv_render (GstAATv * aatv, guchar * dest)
   const guchar *font_base_address = aa_currentfont (aatv->context)->data;
   guint font_height = aa_currentfont (aatv->context)->height;
 
-  //loop through the canvas height
+  /* loop through the canvas height */
   for (y = 0; y < aa_scrheight (aatv->context); y++) {
-    //loop through the height of a character's font
+    /* loop through the height of a character's font */
     for (font_y = 0; font_y < font_height; font_y++) {
-      //loop through the canvas width
+      /* loop through the canvas width */
       for (x = 0; x < aa_scrwidth (aatv->context); x++) {
 
-        //which char are we working on
+        /* which char are we working on */
         char_index = x + y * aa_scrwidth (aatv->context);
-        //lookup what character we need to render
+        /* lookup what character we need to render */
         input_letter = aa_text (aatv->context)[char_index];
-        //check for special attributes like bold or dimmed
+        /* check for special attributes like bold or dimmed */
         attribute = aa_attrs (aatv->context)[char_index];
-        //look that character up in the font glyph table
+        /* look that character up in the font glyph table */
         input_glyph = font_base_address[input_letter * font_height + font_y];
 
-        //check if we need to re-color this character for rain effect
+        /* check if we need to re-color this character for rain effect */
         rain_pixel = FALSE;
 
         if (aatv->rain_mode == GST_RAIN_DOWN) {
@@ -286,7 +286,7 @@ gst_aatv_render (GstAATv * aatv, guchar * dest)
                   raindrops[y].location - raindrops[y].length)
                 rain_pixel = TRUE;
         }
-        //loop through the width of a character's font (always 8 pixels wide)
+        /* loop through the width of a character's font (always 8 pixels wide) */
         for (font_x = 0; font_x < 8; font_x++) {
 
           GstAATvARGB pixel_argb;
@@ -347,13 +347,13 @@ gst_aatv_transform_frame (GstVideoFilter * vfilter, GstVideoFrame * in_frame,
 
   GST_OBJECT_LOCK (aatv);
 
-  gst_aatv_scale (aatv, GST_VIDEO_FRAME_PLANE_DATA (in_frame, 0),       // src 
-      aa_image (aatv->context), //dest
-      GST_VIDEO_FRAME_WIDTH (in_frame), // sw 
-      GST_VIDEO_FRAME_HEIGHT (in_frame),        // sh
-      GST_VIDEO_FRAME_PLANE_STRIDE (in_frame, 0),       // ss
-      aa_imgwidth (aatv->context),      // dw
-      aa_imgheight (aatv->context));    // dh
+  gst_aatv_scale (aatv, GST_VIDEO_FRAME_PLANE_DATA (in_frame, 0),       /* src */
+      aa_image (aatv->context), /* dest */
+      GST_VIDEO_FRAME_WIDTH (in_frame), /* sw */
+      GST_VIDEO_FRAME_HEIGHT (in_frame),        /* sh */
+      GST_VIDEO_FRAME_PLANE_STRIDE (in_frame, 0),       /* ss */
+      aa_imgwidth (aatv->context),      /* dw */
+      aa_imgheight (aatv->context));    /* dh */
 
   aa_render (aatv->context, &aatv->ascii_parms, 0, 0,
       aa_imgwidth (aatv->context), aa_imgheight (aatv->context));
@@ -377,7 +377,7 @@ gst_aatv_dither_get_type (void)
     gint i;
 
     for (n_ditherers = 0; aa_dithernames[n_ditherers]; n_ditherers++) {
-      //count number of ditherers 
+      /* count number of ditherers */
     }
 
     ditherers = g_new0 (GEnumValue, n_ditherers + 1);
@@ -409,7 +409,7 @@ gst_aatv_font_get_type (void)
     gint i;
 
     for (n_fonts = 0; aa_fonts[n_fonts]; n_fonts++) {
-      //count number of fonts 
+      /* count number of fonts  */
     }
 
     fonts = g_new0 (GEnumValue, n_fonts + 1);
@@ -437,7 +437,7 @@ gst_aatv_setcaps (GstVideoFilter * filter, GstCaps * incaps,
   return TRUE;
 }
 
-//use a custom transform_caps 
+/* use a custom transform_caps */
 static GstCaps *
 gst_aatv_transform_caps (GstBaseTransform * trans, GstPadDirection direction,
     GstCaps * caps, GstCaps * filter)
@@ -455,7 +455,7 @@ gst_aatv_transform_caps (GstBaseTransform * trans, GstPadDirection direction,
 
     g_value_init (&src_width, G_TYPE_INT);
     g_value_init (&src_height, G_TYPE_INT);
-    //calculate output resolution from canvas size and font size 
+    /* calculate output resolution from canvas size and font size */
 
     g_value_set_int (&src_width, aa_defparams.width * 8);
     g_value_set_int (&src_height,
@@ -463,7 +463,7 @@ gst_aatv_transform_caps (GstBaseTransform * trans, GstPadDirection direction,
 
     gst_caps_set_value (ret, "width", &src_width);
     gst_caps_set_value (ret, "height", &src_height);
-    //force ARGB output format 
+    /* force ARGB output format */
     g_value_init (&formats, GST_TYPE_LIST);
     g_value_init (&value, G_TYPE_STRING);
     g_value_set_string (&value, "ARGB");
