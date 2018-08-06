@@ -64,13 +64,7 @@ extern "C" {
 		gint delay_counter;
 	};
 	
-	struct _GstAATvARGB {
-		guint32 argb;
-		guint8 a;
-		guint8 r;
-		guint8 g;
-		guint8 b;
-	};
+
 	
 	struct _GstAATv {
 		GstVideoFilter videofilter;
@@ -78,10 +72,10 @@ extern "C" {
 		aa_context *context;
 
 		guint32 color_text;
-		GstAATvARGB color_text_bold,color_text_normal,color_text_dim;
+		guint32 color_text_bold,color_text_normal,color_text_dim;
 		guint32 color_rain;
-		GstAATvARGB color_rain_bold,color_rain_normal,color_rain_dim;
-		GstAATvARGB color_background;
+		guint32 color_rain_bold,color_rain_normal,color_rain_dim;
+		guint32 color_background;
 		
 		GstRainMode rain_mode;
 
