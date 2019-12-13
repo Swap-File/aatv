@@ -26,7 +26,7 @@
 * <title>Example launch line</title>
 * |[
 * gst-launch-1.0 -v videotestsrc ! aatv ! videoconvert ! autovideosink
-* ]| This pipeline shows the effect of cacatv on a test stream.
+* ]| This pipeline shows the effect of aatv on a test stream.
 * </refsect2>
 */
 
