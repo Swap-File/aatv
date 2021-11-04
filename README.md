@@ -1,3 +1,6 @@
+Now in mainline gstreamer:
+https://gitlab.freedesktop.org/gstreamer/gst-plugins-good/-/merge_requests/440
+
 # aatv building for Raspbian Buster Lite
 ```
 git clone git://anongit.freedesktop.org/git/gstreamer/gst-plugins-good
